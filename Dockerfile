@@ -1,19 +1,33 @@
-FROM node:18.20.2
+# ─────────────────────────────────────────────
+# Stage 1: Build the React app
+# ─────────────────────────────────────────────
+FROM node:20-alpine AS builder
 
-WORKDIR /weather-calculator
+# Set working directory
+WORKDIR /app
 
+# Copy package files first (layer caching)
 COPY package*.json ./
 
+# Install dependencies
 RUN npm install
 
+# Copy rest of the source code
 COPY . .
 
-RUN npm install
+# Build the production bundle
+RUN npm run build
 
-EXPOSE 5173
+# ─────────────────────────────────────────────
+# Stage 2: Serve with Nginx
+# ─────────────────────────────────────────────
+FROM nginx:alpine
 
-CMD ["npm", "run", "dev", "--", "--host"]
+# Copy built files from Stage 1 into Nginx html folder
+COPY --from=builder /app/build /usr/share/nginx/html
 
+# Expose port 80
+EXPOSE 80
 
-
-
+# Start Nginx
+CMD ["nginx", "-g", "daemon off;"]
